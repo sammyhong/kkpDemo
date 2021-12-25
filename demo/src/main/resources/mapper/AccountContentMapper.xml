@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kkp.demo.dao.AccountContentMapper">
+	<select id="selectAllUsers" resultType="OutUser">
+    	SELECT  * 
+        FROM user
+    </select>
+	<select id="selectAllAccounts" resultType="Account">
+    	SELECT  * 
+        FROM account
+    </select>
+    <insert id="insertAccount" parameterType="com.kkp.demo.dto.Account">
+    	INSERT INTO Account(id, account) 
+		VALUES (#{id}, #{account})
+    </insert>
+    <insert id="insertAccountContent" parameterType="com.kkp.demo.dto.AccountContent">
+    	INSERT INTO AccountContent(account, in_out_yn, deposit, deposit_date) 
+		VALUES (#{account}, #{inOutYn}, #{deposit}, #{depositDate})
+    </insert>
+    <select id="selectAllAccountContents" resultType="AccountContent">
+    	SELECT *
+    	FROM AccountContent
+    </select>
+    <select id="selectBalanceById" resultType="OutBalanceById">
+    	SELECT ac.account, 												  /* 계좌번호 */
+    	      (SUM(case when in_out_yn = 'Y' then deposit end)
+    	       - SUM(case when in_out_yn = 'N' then deposit end)) balance /* 예치금 = 입금액 - 출금액 */
+		FROM accountcontent AS ac
+		INNER JOIN account AS a ON ac.account = a.account
+		WHERE a.id = #{id}
+		GROUP BY a.account
+		ORDER BY a.account;
+    </select>
+    <select id="selectBalanceByAgeGroup" resultType="OutBalanceByAgeGroup">
+    	SELECT (FLOOR(age/10)*10) age_group
+    		   , (SUM(case when in_out_yn = 'Y' then deposit end) 
+    		       - SUM(case when in_out_yn = 'N' then deposit end)) balance
+		FROM accountcontent ac
+		JOIN account a ON ac.account = a.account
+		JOIN user u ON u.id = a.id
+		GROUP BY FLOOR(age/10)*10
+    </select>
+    <select id="selectBalanceByYear" resultType="OutBalanceByYear">
+    	SELECT 	(SUM(case when in_out_yn = 'Y' then deposit end)
+    	       - SUM(case when in_out_yn = 'N' then deposit end)) balance /* 예치금 = 입금액 - 출금액 */
+    	       , SUBSTR(deposit_date, 1, 4) year						  /* 조회년도 */
+		FROM accountcontent
+		WHERE deposit_date like '%' || #{year} || '%'
+		GROUP BY SUBSTR(deposit_date, 1, 4)
+    </select>
+    <select id="selectBalanceByPeriod" resultType="OutBalanceByPeriod">
+    	SELECT a.id															/* 아이디 */
+    		  , u.name														/* 이름 */
+    		  , (SUM(case when in_out_yn = 'Y' then deposit end)
+    		   	 - SUM(case when in_out_yn = 'N' then deposit end)) balance /* 예치금 = 입금액 - 출금액 */
+		FROM accountcontent ac
+		JOIN account a ON ac.account = a.account
+		JOIN user u ON u.id = a.id
+		WHERE deposit_date BETWEEN #{startDt} and #{endDt}
+		GROUP BY a.id
+		ORDER BY balance DESC
+    </select>    
+</mapper>
+
